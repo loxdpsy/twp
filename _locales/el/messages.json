@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Απαιτεί το Atlas Helper και ένα πακέτο γλώσσας"
+  },
   "extensionDescription": {
     "message": "Μετάφραση της σελίδας σας άμεσα με χρήση Google ή Yandex."
   },

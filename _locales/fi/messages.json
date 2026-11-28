@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Vaatii Atlas Helperin ja kielipaketin"
+  },
   "extensionDescription": {
     "message": "Käännä verkkosivu lennossa Googlella tai Yandexilla."
   },

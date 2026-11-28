@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Nepieciešams Atlas Helper un valodas pakotne"
+  },
   "extensionDescription": {
     "message": "Lapu tulkošana reāllaikā, izmantojot Google vai Yandex dzinējus."
   },

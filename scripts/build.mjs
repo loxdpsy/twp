@@ -36,6 +36,7 @@ const SHIPPED = [
   "onboarding",
   "options",
   "popup",
+  "translator",
   "w3css",
   "LICENSE",
   "NOTICE.md"

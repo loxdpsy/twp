@@ -246,11 +246,19 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            asset: atlas-updater-linux
+            asset: atlas-updater-linux.AppImage
+            engine: linux
+          # Apple Silicon (the macos-latest runner is arm64). Its engine is the x86_64 one from engine.yml, which runs
+          # here under Rosetta 2, as before. The Intel build below runs it natively.
           - os: macos-latest
-            asset: atlas-updater-macos
+            asset: atlas-updater-macos.dmg
+            engine: macos
+          - os: macos-15-intel
+            asset: atlas-updater-macos-intel.dmg
+            engine: macos
           - os: windows-latest
             asset: atlas-updater-windows.exe
+            engine: windows
     defaults:
       run:
         shell: bash
@@ -270,6 +278,107 @@ jobs:
 
       - name: Build the helper (runs the Rust tests first)
         run: node scripts/build-helper.mjs --out "$RUNNER_TEMP/helper"
+
+      # Linux and macOS: the package carries the offline engine and its library, so the helper finds them beside itself.
+      - name: Download the offline engine (Linux and macOS packages)
+        if: runner.os != 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: atlas-engine-*${{ matrix.engine }}*
+          merge-multiple: true
+          path: ${{ runner.temp }}/engine
+
+      - name: Linux AppImage (the helper, the offline engine and its library in one file)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/AppDir"
+          rm -rf "$APP" && mkdir -p "$APP/usr/bin"
+          cp "$RUNNER_TEMP/helper/atlas-updater-linux" "$APP/usr/bin/atlas-updater"
+          cp "$RUNNER_TEMP/engine/atlas-engine-linux" "$APP/usr/bin/atlas-engine"
+          cp "$RUNNER_TEMP/engine/atlas-engine-lib-linux.so" "$APP/usr/bin/libatlas_engine.so"
+          chmod +x "$APP/usr/bin/atlas-updater" "$APP/usr/bin/atlas-engine"
+          cp icons/icon-128.png "$APP/atlas-helper.png"
+          # The licence texts and notices, as the packages must carry them.
+          mkdir -p "$APP/usr/share/doc/atlas-helper"
+          cp LICENSE NOTICE.md "$APP/usr/share/doc/atlas-helper/"
+          cp -r LICENSES "$APP/usr/share/doc/atlas-helper/"
+          cat > "$APP/atlas-helper.desktop" <<'DESKTOP'
+          [Desktop Entry]
+          Type=Application
+          Name=Atlas Helper
+          Comment=Offline translation for Atlas Translation
+          Exec=AppRun
+          Icon=atlas-helper
+          Terminal=false
+          Categories=Utility;
+          DESKTOP
+          cat > "$APP/AppRun" <<'APPRUN'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/atlas-updater" "$@"
+          APPRUN
+          chmod +x "$APP/AppRun"
+          curl -fsSL -o "$RUNNER_TEMP/appimagetool" https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x "$RUNNER_TEMP/appimagetool"
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$RUNNER_TEMP/appimagetool" "$APP" "$RUNNER_TEMP/helper/atlas-updater-linux.AppImage"
+          ls -l "$RUNNER_TEMP/helper/atlas-updater-linux.AppImage"
+
+      - name: macOS disk image (the helper, the offline engine and its library in one app)
+        if: runner.os == 'macOS'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/dmg"
+          APP="$STAGE/Atlas Helper.app"
+          rm -rf "$STAGE" && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp "$RUNNER_TEMP/helper/atlas-updater-macos" "$APP/Contents/MacOS/atlas-updater"
+          cp "$RUNNER_TEMP/engine/atlas-engine-macos" "$APP/Contents/MacOS/atlas-engine"
+          cp "$RUNNER_TEMP/engine/atlas-engine-lib-macos.dylib" "$APP/Contents/MacOS/libatlas_engine.dylib"
+          chmod +x "$APP/Contents/MacOS/atlas-updater" "$APP/Contents/MacOS/atlas-engine"
+          # The licence texts and notices, as the packages must carry them.
+          mkdir -p "$APP/Contents/Resources/licenses"
+          cp LICENSE NOTICE.md "$APP/Contents/Resources/licenses/"
+          cp -r LICENSES "$APP/Contents/Resources/licenses/"
+          # The icon: the 128 px logo, resized to each size an app icon needs.
+          ICONSET="$RUNNER_TEMP/AppIcon.iconset"
+          mkdir -p "$ICONSET"
+          make_icon() { sips -z "$1" "$1" icons/icon-128.png --out "$ICONSET/$2" >/dev/null; }
+          make_icon 16 icon_16x16.png
+          make_icon 32 icon_16x16@2x.png
+          make_icon 32 icon_32x32.png
+          make_icon 64 icon_32x32@2x.png
+          make_icon 128 icon_128x128.png
+          make_icon 256 icon_128x128@2x.png
+          make_icon 256 icon_256x256.png
+          make_icon 512 icon_256x256@2x.png
+          make_icon 512 icon_512x512.png
+          make_icon 1024 icon_512x512@2x.png
+          iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+          cat > "$APP/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Atlas Helper</string>
+            <key>CFBundleDisplayName</key><string>Atlas Helper</string>
+            <key>CFBundleExecutable</key><string>atlas-updater</string>
+            <key>CFBundleIdentifier</key><string>org.atlas-translation.helper</string>
+            <key>CFBundleIconFile</key><string>AppIcon</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>$VERSION</string>
+            <key>CFBundleShortVersionString</key><string>$VERSION</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          # Ad-hoc signature (no Apple certificate). Gatekeeper still asks the user to confirm the first time.
+          codesign --force --deep --sign - "$APP"
+          ln -s /Applications "$STAGE/Applications"
+          hdiutil create -volname "Atlas Helper" -srcfolder "$STAGE" -ov -format UDZO "$RUNNER_TEMP/helper/${{ matrix.asset }}"
+          ls -l "$RUNNER_TEMP/helper/${{ matrix.asset }}"
 
       - name: Keep the program for the publish job
         uses: actions/upload-artifact@v4
@@ -343,13 +452,6 @@ jobs:
           merge-multiple: true
           path: dist
 
-      - name: Download the offline engine programs
-        uses: actions/download-artifact@v4
-        with:
-          pattern: atlas-engine-*
-          merge-multiple: true
-          path: dist
-
       - name: Write the Firefox update manifest
         env:
           GH_TOKEN: ${{ github.token }}
@@ -396,24 +498,10 @@ jobs:
               echo "> **Prerelease.** Not the public launch yet. The helper (atlas-updater) installs it while it includes prereleases."
               echo ""
             fi
-            echo "## Downloads"
-            echo ""
-            echo "- **Chrome Web Store:** \`atlas-translation-$VERSION-chromium.zip\`"
-            echo "- **Microsoft Edge Add-ons:** \`atlas-translation-$VERSION-edge.zip\` (same package as Chromium). It is submitted to Edge automatically when the Edge secrets are set."
-            echo "- **Chromium, self-hosting:** \`atlas-translation-$VERSION-chromium.crx\` (Chromium 109 or newer)"
-            echo "- **Helper (atlas-updater):** \`atlas-updater-windows-setup.exe\` (Windows installer, for the current user, with a Start menu entry, a choice of folder, an optional start at sign-in, and the offline engine inside it), \`atlas-updater-windows.exe\`, \`atlas-updater-macos\`, \`atlas-updater-linux\`. It installs the newest release into your unpacked copy. See tools/atlas-updater/README.md."
-            echo "- **Offline engine:** \`atlas-engine-windows.exe\`, \`atlas-engine-macos\`, \`atlas-engine-linux\`. The helper runs it for offline translation. On Windows the engine is already inside the setup file, and the helper does not download it; on macOS and Linux the helper installs it from here. The library \`atlas-engine-lib-*\` is the same engine as a shared library, which the helper loads."
-            if [ -f "dist/atlas-translation-$VERSION-firefox-signed.xpi" ]; then
-              echo "- **Firefox, self-hosted:** \`atlas-translation-$VERSION-firefox-signed.xpi\` is signed. Open it in Firefox to install. Firefox then updates it from \`updates.json\` in this release. Firefox for Android installs from addons.mozilla.org only."
-            else
-              echo "- **Firefox:** install from addons.mozilla.org. This release has no signed \`.xpi\`, so self-hosted installs and updates are not available for it."
-            fi
-            if [ "$SUBMIT" = "true" ]; then
-              echo "- **Firefox store:** submitted to addons.mozilla.org for review with this release. It appears in the store after Mozilla approves it. The store file is not attached here."
-            else
-              echo "- **Firefox store:** not submitted in this run. The store file is not attached to the release."
-            fi
           } >> notes.md
+          # The download table, the files with their SHA-256, and the Stores and Helper notes. The checksums of every
+          # file are written to dist/SHA256SUMS.txt here, so the upload below attaches that file too.
+          node scripts/release-downloads.mjs --dist dist --version "$VERSION" --repo "$GITHUB_REPOSITORY" --store-submitted "$SUBMIT" >> notes.md
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
             gh release edit "$TAG" --title "Atlas Translation $VERSION" --notes-file notes.md --prerelease="$PRERELEASE"

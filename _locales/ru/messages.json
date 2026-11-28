@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Требуется Atlas Helper и языковой пакет"
+  },
   "extensionDescription": {
     "message": "Перевод страниц в режиме реального времени с помощью Google или Яндекс."
   },

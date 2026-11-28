@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translator</title>
+    <link rel="stylesheet" href="translator.css">
+    <script src="/lib/theme.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand">
+            <img src="/icons/icon.svg" alt="" aria-hidden="true">
+            <span>Translator</span>
+        </div>
+        <nav class="tabs" role="tablist" aria-label="Translator sections">
+            <button type="button" id="tabText" class="tab selected" role="tab" aria-selected="true" aria-controls="panelText">Text</button>
+            <button type="button" id="tabPdf" class="tab" role="tab" aria-selected="false" aria-controls="panelPdf">PDF</button>
+            <button type="button" id="tabHistory" class="tab" role="tab" aria-selected="false" aria-controls="panelHistory">History</button>
+        </nav>
+    </header>
+
+    <main class="page">
+        <section id="panelText" role="tabpanel" aria-labelledby="tabText">
+            <div class="langBar">
+                <div class="sideBar">
+                    <div id="sourceChips" class="chips" role="group" aria-label="Translate from"></div>
+                    <button type="button" id="sourceMore" class="moreButton" aria-label="All languages to translate from" title="All languages">&#8964;</button>
+                </div>
+                <button type="button" id="btnSwap" class="iconButton" title="Swap languages" aria-label="Swap languages">&#8644;</button>
+                <div class="sideBar">
+                    <div id="targetChips" class="chips" role="group" aria-label="Translate to"></div>
+                    <button type="button" id="targetMore" class="moreButton" aria-label="All languages to translate to" title="All languages">&#8964;</button>
+                </div>
+            </div>
+            <select id="sourceLang" class="hiddenSelect" tabindex="-1" aria-hidden="true"></select>
+            <select id="targetLang" class="hiddenSelect" tabindex="-1" aria-hidden="true"></select>
+
+            <div class="panels">
+                <div class="panel">
+                    <textarea id="input" maxlength="5000" placeholder="Type or paste text to translate" aria-label="Text to translate"></textarea>
+                    <div class="panelFoot">
+                        <span id="count" class="muted">0 / 5000</span>
+                        <span class="footActions">
+                            <button type="button" id="btnListenInput" class="linkButton" aria-label="Listen to the text">&#128266; Listen</button>
+                            <button type="button" id="btnClearInput" class="linkButton">Clear</button>
+                        </span>
+                    </div>
+                </div>
+                <div class="panel output">
+                    <div id="output" class="output-text" data-placeholder="Translation" aria-live="polite" aria-label="Translation"></div>
+                    <div class="panelFoot">
+                        <span class="footActions">
+                            <button type="button" id="btnListenOutput" class="linkButton" aria-label="Listen to the translation">&#128266; Listen</button>
+                            <span class="speedWrap">
+                                <button type="button" id="btnSpeed" class="linkButton" aria-haspopup="true" aria-expanded="false">Speed</button>
+                                <div id="speedMenu" class="speedMenu" role="menu" hidden>
+                                    <p class="speedTitle">Reading speed</p>
+                                    <div class="speedRow" role="menuitemradio" aria-checked="true" data-speed="normal" tabindex="0">
+                                        <span class="speedName">Normal</span><button type="button" class="linkButton testSpeed" data-speed="normal">Test</button>
+                                    </div>
+                                    <div class="speedRow" role="menuitemradio" aria-checked="false" data-speed="slow" tabindex="0">
+                                        <span class="speedName">Slow</span><button type="button" class="linkButton testSpeed" data-speed="slow">Test</button>
+                                    </div>
+                                    <div class="speedRow" role="menuitemradio" aria-checked="false" data-speed="slowest" tabindex="0">
+                                        <span class="speedName">Slowest</span><button type="button" class="linkButton testSpeed" data-speed="slowest">Test</button>
+                                    </div>
+                                </div>
+                            </span>
+                        </span>
+                        <span class="footActions">
+                            <button type="button" id="btnCopy" class="linkButton">Copy</button>
+                            <button type="button" id="btnSave" class="linkButton" aria-pressed="false">Save</button>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <p id="status" class="status" role="status"></p>
+            <p class="muted small">Translations use the text service chosen in the extension settings. Each translation is saved in History on this computer.</p>
+        </section>
+
+        <section id="panelPdf" role="tabpanel" aria-labelledby="tabPdf" hidden>
+            <h2>Translate a PDF</h2>
+            <p class="muted">Choose a PDF file, or paste its web address. The text is read and translated on this computer with the Offline helper.</p>
+            <div class="pdfForm">
+                <label class="pdfField">PDF file
+                    <input id="pdfFile" type="file" accept="application/pdf,.pdf">
+                </label>
+                <label class="pdfField">or web address
+                    <input id="pdfUrl" type="url" placeholder="https://example.com/document.pdf">
+                </label>
+                <div class="langRow">
+                    <label class="pdfField">From <select id="pdfSource"></select></label>
+                    <label class="pdfField">To <select id="pdfTarget"></select></label>
+                    <button type="button" id="btnPdfTranslate" class="primary">Translate PDF</button>
+                </div>
+            </div>
+            <p id="pdfStatus" class="status" role="status"></p>
+            <div id="pdfOcr" class="pdfOcr" hidden>
+                <p id="pdfOcrText" class="muted small"></p>
+                <button type="button" id="btnPdfOcr" class="linkButton">Read scanned pages with OCR</button>
+            </div>
+            <div id="pdfActions" class="pdfActions" hidden>
+                <button type="button" id="pdfCopy" class="linkButton">Copy</button>
+                <button type="button" id="pdfDownload" class="linkButton">Download .txt</button>
+                <label class="checkLabel"><input type="checkbox" id="pdfShowOriginal"> Show original text</label>
+            </div>
+            <div id="pdfResult" class="pdfResult" aria-live="polite"></div>
+            <p class="muted small">Needs the Atlas Helper with the language pack for the two languages (one side must be English). Scanned pages (no text layer) can be read with OCR, which runs in the Atlas Helper and needs its text recognition models. Up to 50 MB and 300 pages.</p>
+        </section>
+
+        <section id="panelHistory" role="tabpanel" aria-labelledby="tabHistory" hidden>
+            <h2>Saved</h2>
+            <ul id="savedList" class="items"></ul>
+            <p id="savedEmpty" class="muted">Press Save under a translation to keep it here.</p>
+            <div class="historyHead">
+                <h2>History</h2>
+                <button type="button" id="btnClearHistory" class="linkButton">Clear history</button>
+            </div>
+            <ul id="historyList" class="items"></ul>
+            <p id="historyEmpty" class="muted">Translations you make appear here.</p>
+        </section>
+    </main>
+
+    <div id="langPanel" class="langPanel" role="dialog" aria-modal="true" aria-labelledby="langTitle" hidden>
+        <div class="langHead">
+            <button type="button" id="langBack" class="iconButton" aria-label="Close the language list">&#8592;</button>
+            <h2 id="langTitle" class="langTitle">Translate to</h2>
+            <input id="langSearch" type="search" placeholder="Search a language" aria-label="Search a language">
+        </div>
+        <div id="langGrid" class="langGrid"></div>
+    </div>
+
+    <script src="/lib/polyfill.js"></script>
+    <script src="/lib/checkedLastError.js"></script>
+    <script src="/lib/stuff.js"></script>
+    <script src="/lib/languages.js"></script>
+    <script src="/lib/config.js"></script>
+    <script src="/lib/i18n.js"></script>
+    <script src="helper.js"></script>
+    <script src="history.js"></script>
+    <script src="language-picker.js"></script>
+    <script src="translator.js"></script>
+    <script src="pdf-text.js"></script>
+    <script type="module" src="pdf-translate.mjs"></script>
+</body>
+</html>

@@ -36,9 +36,20 @@ endif()
 set(COMPILE_CPU ON CACHE BOOL "" FORCE)
 set(COMPILE_CUDA OFF CACHE BOOL "" FORCE)
 set(USE_MKL OFF CACHE BOOL "" FORCE)
-set(USE_INTGEMM ON CACHE BOOL "" FORCE)
+# intgemm (the int8 products) is x86 only. ARM builds leave it out and read the float32 packs (see pack_config.h).
+# Marian turns intgemm off for ARM by itself; this keeps the option consistent with that.
+# On ARM, Ruy does the float32 matrix products (marian's ARM branch turns it on by default). x86 keeps it off.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+  set(USE_INTGEMM OFF CACHE BOOL "" FORCE)
+  set(USE_RUY ON CACHE BOOL "" FORCE)
+  # The WASM-compatible sources (set below) pick ONNX for float32 products, but marian's float32 Prod only exists for
+  # BLAS or Ruy. Ruy is the float32 path marian uses on ARM, so ONNX is turned off here.
+  set(USE_ONNX_SGEMM OFF CACHE BOOL "" FORCE)
+else()
+  set(USE_INTGEMM ON CACHE BOOL "" FORCE)
+  set(USE_RUY OFF CACHE BOOL "" FORCE)
+endif()
 set(USE_FBGEMM OFF CACHE BOOL "" FORCE)
-set(USE_RUY OFF CACHE BOOL "" FORCE)
 set(USE_SENTENCEPIECE ON CACHE BOOL "" FORCE)
 set(USE_DOXYGEN OFF CACHE BOOL "" FORCE)
 set(COMPILE_TESTS OFF CACHE BOOL "" FORCE)
@@ -148,3 +159,13 @@ target_link_libraries(atlas-engine-lib PRIVATE bergamot-translator-source marian
 
 add_executable(atlas-engine-check atlas-engine-check.c)
 target_link_libraries(atlas-engine-check PRIVATE atlas-engine-lib)
+
+# ARM64: marian's SIMD helpers (functional/operators.h, through simd_utils) need ARM, FMA and SSE. Marian sets them only
+# for its own directory, so these targets would be compiled without them and the NEON helpers (sin_ps, _mm_mul_ps, ...)
+# would be missing. x86 does not use these helpers, so it is unchanged.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+  # translator-cli is Bergamot's command-line app; the default build compiles it too.
+  foreach(target IN ITEMS bergamot-translator-source translator-cli atlas-engine atlas-engine-lib)
+    target_compile_definitions(${target} PRIVATE ARM FMA SSE)
+  endforeach()
+endif()

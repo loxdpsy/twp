@@ -1,8 +1,60 @@
 # Changelog
 
 ## Unreleased
+- Release notes: a download table by operating system, with every file's SHA-256 and size, and a `SHA256SUMS.txt`
+  file for checking downloads. Android has no package (the helper is a desktop program; Firefox for Android installs the
+  store version). Intel Macs have their own disk image. Windows ARM64, Linux ARM64 and the .deb and .rpm packages are
+  not built yet.
+  Each file has a short description of who it is for.
+- The extension's Settings note about the offline service ("Needs the Atlas Helper and a language pack") is translated
+  into 39 languages. Santali shows English until it has a translation.
+- Offline text recognition (OCR) engines in the helper, in pure Rust, with a local `/api/offline/ocr` route for the
+  extension. ocrs (MIT or Apache-2.0 engine; models CC BY-SA 4.0, about 12 MB, checked with SHA-256) is the default.
+  PP-OCRv4 (Apache-2.0, about 16 MB) is the second. The request names the engine it wants; when that one is not
+  installed, the other installed engine reads the picture. The helper's ping lists the installed engines in
+  `ocr_engines`. Tesseract is listed, not added yet.
+  The Translator's PDF tab has an OCR button for scanned pages (no text): the page is read by the helper and then translated.
+- Helper window and tray text: translated into 39 languages (Santali shows English until a translation is added). Native-speaker review is still needed before release.
+- Helper About tab: the version, a link to the web page, the repository, releases and third-party notices.
+  The language is the one chosen in Settings, or the computer's language with "system". Strings with no translation show
+  in English. 
+- Read-aloud runtime: the Offline tab installs it once for the computer (sherpa-onnx, checked with SHA-256). The local API
+  for speaking, OCR and translation now checks the token under the lock and releases it before the slow work.
+- Helper: checks for a newer helper, not only a newer extension. It shows "A new version is available, please update" with what is new, and a button to the release page.
+- Atlas Helper starts silently: after install and at sign-in it runs in the tray only, with no window and no console. Its window opens from the tray icon.
+- Read-aloud voices: seven voices for English, Arabic, Chinese and 31 languages in all (Kitten nano 0.2 added for English), with licences and SHA-256 checksums. In the Offline tab, choose a language, tick the voices you want (or select all), and install them: the size and licence are shown first, and each download is checked. The Translator's Listen button uses them.
 
 Not released yet. Changes after 0.0.2.5 are listed here.
+
+- Translator page (toolbar popup menu, "Translator"): translate text as you type, with a language swap, Copy and Save.
+  History keeps the newest 100 translations. Saved items stay until you remove them. "Clear history" removes only unsaved items.
+- Translator PDF tab: choose a PDF file or paste its address. The text is read and translated on this computer with the
+  Offline helper (one side must be English, and the language pack must be installed). Scanned pages (no text) are read
+  with the helper's text recognition when you press "Read scanned pages with OCR".
+- Translator text tab: a Google-style language chooser (chips for the current and recent languages, a full list with search, swap).
+- Translator: Listen to the source or the translation, at Normal, Slow or Slowest speed. The helper's installed read-aloud voice
+  for the language is used when there is one (up to 2000 characters); otherwise the computer's voices are used.
+- Atlas Helper status: the local API reports the installed read-aloud voices and whether text recognition is installed.
+- Offline tab: "Install all voices for <language> (recommended)" and "Install all packs (recommended)". Single voices and packs can still be chosen.
+- Licences in the packages: the Windows installer, the Linux AppImage and the macOS app now include LICENSE, NOTICE.md and LICENSES/.
+- Checks: a workflow downloads each read-aloud voice archive, checks its size and SHA-256, and reports whether it contains espeak-ng-data and licence files. Another workflow checks every Rust crate's licence against an allowlist (tools/atlas-updater/deny.toml).
+- Labels for the batch installs are translated into all helper languages (first drafts, to be reviewed by native speakers).
+- Licences: the full texts of the licences the helper's parts use are in LICENSES/ (GPL-3.0 for the espeak-ng phoneme data in the voice archives, Apache-2.0, MIT, MPL-2.0, and links for CC BY 4.0, CC0 and OpenRAIL-M). NOTICE.md lists each part.
+- Opening a PDF shows a prompt to translate it (From and To). It opens the Translator's PDF tab, which translates on this computer with the Offline helper.
+- PDF translation: the document's language is guessed from its text, and From is set to it. A "Show original text" box shows each paragraph's source.
+- Keyboard command "Open the Translator" (Firefox: Shift+Alt+Y; Chromium: set it at chrome://extensions/shortcuts).
+- Setup page: Save closes the page. When the helper still needs connecting, the note stays for a few seconds first.
+
+## 0.0.2.7
+
+Prepared, not published yet.
+
+- Atlas Helper: the dark theme is readable. The header, the footer and the sidebar follow the theme, so the tab names no longer disappear on a dark background.
+- Atlas Helper: Offline translation has "Install many packs". Choose a language under "Translate to" and install all of its packs at once, or install all packs. The window shows the number of packs and the total size first, and the packs install one after another. A pack that fails is reported, and the others still install.
+- Atlas Helper for Linux: `atlas-updater-linux.AppImage` is one file with the helper and the offline engine. It needs no installation. Start-at-login and the browser connection use the AppImage file, so they keep working after the helper closes.
+- Atlas Helper for macOS: `atlas-updater-macos.dmg` holds Atlas Helper.app with the offline engine inside. Drag it to Applications. The app has an ad-hoc signature, not an Apple certificate, so the first start needs right-click, Open.
+- Release: the offline engine is no longer attached as separate files. The setup file, the AppImage and the disk image include it, and the helper finds it beside itself. The raw Linux and macOS helper programs are no longer attached either.
+- Atlas Helper: when a release has no separate engine file, the message says to install the AppImage or the disk image, which include the engine.
 
 ## 0.0.2.6
 

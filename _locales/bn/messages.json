@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Atlas Helper ও একটি ভাষা প্যাক দরকার"
+  },
   "extensionDescription": {
     "message": "গুগোল বা ইয়ান্দেক্স ব্যবহার করে সরাসরি আপনার সামনে পৃষ্ঠা অনুবাদ করুন।"
   },

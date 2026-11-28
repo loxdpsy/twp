@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Cần Atlas Helper và gói ngôn ngữ"
+  },
   "extensionDescription": {
     "message": "Dịch trang của bạn trong thời gian thực sử dụng Google hoặc Yandex."
   },

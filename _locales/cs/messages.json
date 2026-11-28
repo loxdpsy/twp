@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Vyžaduje Atlas Helper a jazykový balíček"
+  },
   "extensionDescription": {
     "message": "Přeložte svou stránku v reálném čase pomocí Google nebo Yandex."
   },

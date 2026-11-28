@@ -214,11 +214,27 @@
         const needsKey = PROVIDERS.find(p => p.id === choice && p.needsKey);
         let message = text(needsKey ? "onboardingSavedKey" : "onboardingSaved", "Saved. You can close this tab.");
         if (choice === "offline" && !isBound()) {
+          // The page closes after Save. When the helper still needs connecting, the note stays on screen for a few seconds first.
           message += " " + text("onboardingOfflineNotConnected", "Offline will not work until this browser is connected to the helper. Press Connect this browser above.");
+          showResult(message);
+          setTimeout(closeThisTab, 6000);
+          return;
         }
-        showResult(message);
+        closeThisTab();
       });
     });
+  }
+
+  // Closes this setup tab. Falls back to window.close() when the tab cannot be found.
+  function closeThisTab() {
+    try {
+      chrome.tabs.getCurrent(tab => {
+        if (tab && tab.id != null) chrome.tabs.remove(tab.id);
+        else window.close();
+      });
+    } catch (e) {
+      window.close();
+    }
   }
 
   function skip() {

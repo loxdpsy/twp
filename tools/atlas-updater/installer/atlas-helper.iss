@@ -4,7 +4,7 @@
 ; Nothing is downloaded and run by the installer: every program it installs is in this file.
 
 #ifndef MyAppVersion
-  #define MyAppVersion "0.0.2.6"
+  #define MyAppVersion "0.0.2.7"
 #endif
 #ifndef SourceExe
   #define SourceExe "..\target\release\atlas-updater.exe"
@@ -52,6 +52,10 @@ Name: "autostart"; Description: "Start Atlas Helper in the tray when I sign in t
 
 [Files]
 Source: "{#SourceExe}"; DestDir: "{app}"; DestName: "atlas-updater.exe"; Flags: ignoreversion
+; Licence texts and notices (the repository's LICENSE, NOTICE.md and LICENSES folder), in the install folder.
+Source: "..\..\..\LICENSE"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "..\..\..\NOTICE.md"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "..\..\..\LICENSES\*"; DestDir: "{app}\licenses\LICENSES"; Flags: ignoreversion recursesubdirs
 #ifdef HasEngine
 Source: "{#EngineExe}"; DestDir: "{app}"; DestName: "atlas-engine.exe"; Flags: ignoreversion
 Source: "{#EngineLib}"; DestDir: "{app}"; DestName: "atlas_engine.dll"; Flags: ignoreversion
@@ -74,5 +78,5 @@ Name: "{userstartup}\Atlas Helper"; Filename: "{app}\atlas-updater.exe"; Paramet
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "AtlasTranslationHelper"; Flags: deletevalue
 
 [Run]
-; Opens the window once, so the welcome page explains the browser steps. Skipped in silent installs.
-Filename: "{app}\atlas-updater.exe"; Description: "Open Atlas Helper"; Flags: nowait postinstall skipifsilent
+; Starts the helper in the tray only, with no window and no console. Its window opens from the tray icon.
+Filename: "{app}\atlas-updater.exe"; Parameters: "--serve"; Description: "Start Atlas Helper in the tray"; Flags: nowait postinstall skipifsilent

@@ -1,0 +1,6 @@
+CDLA-Permissive-2.0 (Community Data License Agreement, Permissive, version 2.0)
+
+Used for: the Mozilla root certificate data in the webpki-roots crate, which the Atlas Helper uses for HTTPS.
+
+The full licence text is published by the Linux Foundation at:
+https://cdla.dev/permissive-2-0/

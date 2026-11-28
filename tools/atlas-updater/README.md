@@ -19,13 +19,23 @@ administrator password: it installs for your user account, in `%LOCALAPPDATA%\Pr
 menu entry, and it can add a desktop shortcut and a start-at-sign-in shortcut (both are checkboxes). The shortcut lives in your Startup folder, and Windows Settings, under Apps, then Startup, can turn it off. The helper does not write to the Windows startup registry. Uninstall it from
 Windows Settings, under Apps.
 
-Every release also attaches the programs to its GitHub release: `atlas-updater-windows.exe` (a portable copy: it installs
-nothing, has no Start menu entry, and Task Manager shows the file name you downloaded), `atlas-updater-macos`
-and `atlas-updater-linux`. Between releases, each build is an artifact of the **Updater** workflow run in GitHub Actions
-(Actions tab, then the newest run), under the same names without `.exe`.
+**macOS: the disk image.** `atlas-updater-macos.dmg` is for Apple Silicon Macs, and `atlas-updater-macos-intel.dmg` is for Intel
+Macs (Apple menu, About This Mac, shows Chip or Processor). It opens a window with Atlas Helper and the Applications folder. Drag
+Atlas Helper into Applications, then open it. The offline engine is inside the app, so there is nothing else to install. The
+app is not signed by Apple yet: the first time, right-click Atlas Helper, choose **Open**, and confirm. If macOS still says
+the app is damaged, run `xattr -dr com.apple.quarantine "/Applications/Atlas Helper.app"` once in Terminal.
 
-The programs and the installer are not code-signed yet. Windows shows "Unknown publisher" (choose **More info**, then **Run anyway**). Signing is the lasting fix.
-On macOS, run `xattr -d com.apple.quarantine ./atlas-updater-macos` once, and on Linux and macOS run `chmod +x ./atlas-updater-linux` (or `./atlas-updater-macos`).
+**Linux: the AppImage.** `atlas-updater-linux.AppImage` is one file that holds the helper and the offline engine. Make it
+runnable with `chmod +x atlas-updater-linux.AppImage`, then start it. Nothing is installed on the system. Start-at-login and
+the browser connection use the AppImage file itself, so keep the file where you put it.
+
+Every release also attaches `atlas-updater-windows.exe` (a portable copy: it installs nothing, has no Start menu entry, has
+no engine, and Task Manager shows the file name you downloaded). The release has no separate engine files: the setup file,
+the AppImage and the disk image each include the engine. Between releases, each build is an artifact of the **Updater**
+workflow run in GitHub Actions (Actions tab, then the newest run).
+
+The programs and the installers are not code-signed yet. Windows shows "Unknown publisher" (choose **More info**, then
+**Run anyway**). macOS asks for the right-click step above. Signing is the lasting fix.
 
 ## Use
 
@@ -74,12 +84,14 @@ command window on Windows.
 The helper can translate text on this computer, so the extension does not send it to a web service. The extension
 uses it as the service named **Offline (desktop helper)**.
 
-1. On Windows the engine is already inside the setup file, so there is nothing to install. On macOS and Linux, open the helper window and
-   install the offline engine (**Install the offline engine**).
+1. The engine is already inside the program you installed (the setup file on Windows, the disk image on macOS, the AppImage on
+   Linux), so there is nothing to install.
 2. Install one or more language packs. Each pack is about 37 MB. Type a language name or code in the search box (for
    example `German` or `de`), or tick **Installed only**. Installed packs are listed first. A pack is downloaded from
    the catalogue in the program, checked against its SHA-256, and only then kept. A file that fails the check is removed, and nothing is
    left behind.
+   To install many at once, choose a language under **Install many packs** ("Translate to") and then **Install all to
+   <language>**, or **Install all packs**. The window shows the total size first, and the packs install one after another.
 3. In the extension's options, under Translation services, turn on Offline (desktop helper) and choose **Bind this
    browser**. The helper window asks you to allow it (Allow or Deny). Nothing is sent until you allow it.
 

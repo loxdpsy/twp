@@ -39,6 +39,11 @@ pub fn packs_dir() -> PathBuf {
     data_dir().join("packs")
 }
 
+/// The read-aloud voices the helper installed (one folder per voice).
+pub fn voices_dir() -> PathBuf {
+    data_dir().join("voices")
+}
+
 /// The engine program that the helper installed itself.
 pub fn installed_engine() -> PathBuf {
     data_dir().join("engine").join(engine_file_name())

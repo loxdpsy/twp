@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Atlas Helper ve bir dil paketi gerekir"
+  },
   "extensionDescription": {
     "message": "Google veya Yandex kullanarak sayfanızı gerçek zamanlı olarak çevirin."
   },

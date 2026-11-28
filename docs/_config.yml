@@ -1,0 +1,7 @@
+# GitHub Pages site for this repository (Settings > Pages > main /docs).
+# The store and upstream notes stay in the repository, but are not published as pages.
+title: Atlas Translation
+description: Translate web pages, text and PDF files in your browser.
+exclude:
+  - store-publishing.md
+  - upstream-triage.md

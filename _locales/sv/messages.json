@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Kräver Atlas Helper och ett språkpaket"
+  },
   "extensionDescription": {
     "message": "Översätt webbplatser i realtid med hjälp av Google eller Yandex."
   },

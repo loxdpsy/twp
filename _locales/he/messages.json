@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "דורש את Atlas Helper וחבילת שפה"
+  },
   "extensionDescription": {
     "message": "תרגום דפי האינטרנט בזמן אמת באמצעות גוגל או יאנדקס."
   },

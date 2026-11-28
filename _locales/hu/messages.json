@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Atlas Helper és egy nyelvi csomag szükséges"
+  },
   "extensionDescription": {
     "message": "Fordítsa le az oldalt valós időben Google vagy Yandex fordítóval."
   },

@@ -73,7 +73,7 @@ assert.strictEqual(helper.requests.length, 0, "no request is sent for a pair wit
 // 4. A pack that is not installed is skipped before any text is sent.
 helper.packs = ["enfr"];
 clock.t += 11000; // the helper status is cached for 10 seconds
-await assert.rejects(translate("fr", "en", "bonjour"), /not installed/);
+await assert.rejects(translate("fr", "en", "bonjour"), /please install the fren language pack/);
 assert.strictEqual(helper.requests.length, 0, "not-installed pack: nothing sent");
 helper.packs = ["enfr", "fren"];
 clock.t += 11000;
@@ -86,7 +86,7 @@ settings.offlineHelperToken = helper.code;
 // 6. No binding token: skipped, nothing sent.
 settings.offlineHelperToken = "";
 helper.requests.length = 0;
-await assert.rejects(translate("en", "fr", "hello"), /bind this browser/);
+await assert.rejects(translate("en", "fr", "hello"), /connect this browser to the Atlas Helper/);
 assert.strictEqual(helper.requests.length, 0);
 settings.offlineHelperToken = helper.code;
 

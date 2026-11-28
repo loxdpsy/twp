@@ -56,6 +56,15 @@ jobs:
             library: atlas_engine.dll
             library_asset: atlas-engine-lib-windows.dll
             checker: atlas-engine-check.exe
+          # ARM64 (free on public repositories). No intgemm here, so the test reads a float32 model: the .npz of Mozilla's
+          # training run for English to French (the same run as the int8 pack's model).
+          - os: ubuntu-24.04-arm
+            binary: atlas-engine
+            asset: atlas-engine-linux-arm64
+            library: libatlas_engine.so
+            library_asset: atlas-engine-lib-linux-arm64.so
+            checker: atlas-engine-check
+            fp32_url: "https://storage.googleapis.com/moz-fx-translations-data--303e-prod-translations-data/models/en-fr/retrain_hr_NLIxDbE1TBGyOTI-zwZagw/student/final.model.npz.best-chrf.npz"
     # The PCRE2 copy that SentencePiece downloads is configured during the Build step, not the Configure step, so the
     # variable must be set for the whole job. CMake 4 refuses the old CMake minimum that PCRE2 and SentencePiece declare.
     env:
@@ -73,7 +82,7 @@ jobs:
       # tools/atlas-engine/CMakeLists.txt). It comes from the commit's source tarball. Marian reads a .git next to the
       # folder for its version header, so the folder gets a git repository with one empty commit. That repository has no
       # submodule entries, so CMake's own submodule updates do nothing. The five submodules that the build needs
-      # are fetched as tarballs at their pinned commits. The other submodules are for CUDA, FBGEMM, or the ARM build.
+      # are fetched as tarballs at their pinned commits. The ARM64 build fetches three more (see below). The rest are for CUDA or FBGEMM.
       - name: Fetch Bergamot (inference/ of mozilla/translations at eea6e5a8)
         run: |
           set -euo pipefail
@@ -100,6 +109,15 @@ jobs:
           # onnxjs supplies the float GEMM of the WASM-compatible sources (USE_WASM_COMPATIBLE_SOURCE, see the engine CMakeLists).
           fetch browsermt/onnxjs 924924b08e9596b41aeebada4a172f026be95f5a "$src/inference/marian-fork/src/3rd_party/onnxjs"
           fetch abhi-agg/eigen-git-mirror fff37f4ca0397af9ed7e04f3bd6b893a1ea2b08e "$src/inference/marian-fork/src/3rd_party/onnxjs/deps/eigen"
+          # ARM64 only. Marian's ARM branch uses Ruy for the float32 products (with its own cpuinfo) and simd_utils for the
+          # NEON math in functional/operators.h. These are the commits that build pins. simd_utils.h calls fesetround
+          # without including <fenv.h>, which GCC does not get from elsewhere (the engine builds with clang anyway).
+          if [ "$RUNNER_ARCH" = "ARM64" ]; then
+            fetch google/ruy 2d950b3bfa7ebfbe7a97ecb44b1cc4da5ac1d6f0 "$src/inference/marian-fork/src/3rd_party/ruy"
+            fetch pytorch/cpuinfo 5916273f79a21551890fd3d56fc5375a78d1598d "$src/inference/marian-fork/src/3rd_party/ruy/third_party/cpuinfo"
+            fetch browsermt/simd_utils d0793d86aea9036a5bc77b9ca7791dff024168ca "$src/inference/marian-fork/src/3rd_party/simd_utils"
+            sed -i '/#include <stdio.h>/a #include <fenv.h>' "$src/inference/marian-fork/src/3rd_party/simd_utils/simd_utils.h"
+          fi
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -115,9 +133,16 @@ jobs:
           "$root/vcpkg.exe" install pcre2:x64-windows-static
           echo "CMAKE_PREFIX_PATH=$(cygpath -m "$root/installed/x64-windows-static")" >> "$GITHUB_ENV"
 
+      # ARM64 Linux builds with clang 18 (preinstalled on the runner image). Marian's NEON code is checked with clang here;
+      # GCC was not retried after the ARM definitions were fixed (see tools/atlas-engine/CMakeLists.txt).
       - name: Configure
         id: configure
-        run: cmake -S tools/atlas-engine -B build/engine -DCMAKE_BUILD_TYPE=Release
+        run: |
+          compilers=()
+          if [ "$RUNNER_ARCH" = "ARM64" ] && [ "$RUNNER_OS" = "Linux" ]; then
+            compilers=(-DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18)
+          fi
+          cmake -S tools/atlas-engine -B build/engine -DCMAKE_BUILD_TYPE=Release "${compilers[@]}"
 
       # The log is kept for the job summary. On Linux and macOS, -k keeps going after an error, so one run lists every
       # failing file instead of only the first one. Windows (MSBuild) stops at the failed project.
@@ -132,7 +157,7 @@ jobs:
       - name: Annotate the build failure
         if: failure() && steps.build.outcome == 'failure'
         run: |
-          grep -E ': error|error [A-Z]+[0-9]+|LNK[0-9]+|CMake Error|\*\*\* |failed' "$RUNNER_TEMP/engine-build.log" | head -n 60 | while IFS= read -r line; do
+          grep -iE 'error|fatal|undefined reference|LNK[0-9]+|CMake Error|\*\*\* ' "$RUNNER_TEMP/engine-build.log" | cut -c1-400 | head -n 60 | while IFS= read -r line; do
             echo "::error title=engine build::${line//%/%25}"
           done || true
 
@@ -158,6 +183,8 @@ jobs:
       - name: Translate English to French with the real language pack
         id: smoke
         # The output is kept for the job summary. The step still fails when the test fails (bash runs with pipefail).
+        env:
+          ATLAS_FP32_MODEL_URL: ${{ matrix.fp32_url || '' }}
         run: node scripts/engine-smoke.mjs "${{ steps.find.outputs.path }}" "${{ steps.find.outputs.checker }}" 2>&1 | tee "$RUNNER_TEMP/engine-smoke.log"
 
       # When the test fails, the last lines of its log are also written as error annotations. Annotations can be read

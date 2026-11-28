@@ -42,7 +42,12 @@ fn startup_shortcut_path() -> Option<PathBuf> {
     })
 }
 
-fn program() -> Result<PathBuf, String> {
+/// The helper's own program file. An AppImage runs from a temporary folder, so its file (the APPIMAGE variable) is used:
+/// the browsers and the start-at-login entry must still find it after the helper closes.
+pub fn program() -> Result<PathBuf, String> {
+    if let Some(file) = std::env::var_os("APPIMAGE").map(PathBuf::from).filter(|p| p.is_file()) {
+        return Ok(file);
+    }
     std::env::current_exe().map_err(|e| format!("cannot find the helper program: {}", e))
 }
 

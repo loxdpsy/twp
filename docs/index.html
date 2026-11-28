@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Atlas Translation: translate text, pages and PDFs on your computer</title>
+  <meta name="description" content="Atlas Translation translates text, web pages and PDF files, free and open source. Offline translation runs on your own computer through the Atlas Helper.">
+  <meta property="og:title" content="Atlas Translation">
+  <meta property="og:description" content="Translate text, web pages and PDF files on your own computer. Free and open source.">
+  <meta property="og:url" content="https://loxdpsy.github.io/AT/">
+  <meta property="og:image" content="https://loxdpsy.github.io/AT/assets/atlas-demo-poster.png">
+  <link rel="canonical" href="https://loxdpsy.github.io/AT/">
+  <link rel="icon" href="icon-128.png">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb; --card: #ffffff; --ink: #1d2230; --muted: #5d6676; --line: #dde3ee;
+      --blue: #1f63d6; --blue-ink: #ffffff; --soft: #e8f0fe; --glow: rgba(31, 99, 214, 0.18);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12151c; --card: #1c2029; --ink: #f1f3f6; --muted: #a8b0bd; --line: #2f3542;
+        --blue: #8ab4f8; --blue-ink: #0d1220; --soft: #263552; --glow: rgba(138, 180, 248, 0.16);
+      }
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; line-height: 1.55;
+    }
+    a { color: var(--blue); }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* Top bar */
+    .nav {
+      position: sticky; top: 0; z-index: 5; backdrop-filter: blur(10px);
+      background: color-mix(in srgb, var(--bg) 85%, transparent); border-bottom: 1px solid var(--line);
+    }
+    .nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; }
+    .brand img { width: 30px; height: 30px; border-radius: 8px; }
+    .nav-links { display: flex; align-items: center; gap: 6px; }
+    .nav-links a { color: var(--muted); text-decoration: none; padding: 8px 12px; border-radius: 10px; font-size: 15px; }
+    .nav-links a:hover { color: var(--ink); background: var(--soft); }
+
+    /* Hero */
+    .hero { padding: 84px 0 48px; text-align: center; }
+    .eyebrow {
+      display: inline-block; padding: 6px 14px; border-radius: 999px; background: var(--soft);
+      color: var(--blue); font-size: 14px; font-weight: 600; margin-bottom: 22px;
+    }
+    h1 { font-size: clamp(42px, 7vw, 72px); line-height: 1.04; letter-spacing: -1.6px; margin: 0 0 20px; font-weight: 750; }
+    .lead { font-size: clamp(18px, 2.2vw, 22px); color: var(--muted); max-width: 680px; margin: 0 auto 34px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 12px;
+      font-weight: 600; text-decoration: none; border: 1px solid var(--blue); color: var(--blue); font-size: 16px;
+    }
+    .btn.primary { background: var(--blue); color: var(--blue-ink); box-shadow: 0 8px 26px var(--glow); }
+    .btn:hover { transform: translateY(-1px); }
+
+    /* Film */
+    .film { padding: 8px 0 72px; }
+    .film-frame {
+      border-radius: 18px; overflow: hidden; border: 1px solid var(--line); background: var(--card);
+      box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.35);
+    }
+    .film-frame video { display: block; width: 100%; height: auto; }
+    .caption { text-align: center; color: var(--muted); font-size: 14px; margin-top: 14px; }
+
+    /* Features */
+    h2.section { font-size: clamp(28px, 4vw, 38px); letter-spacing: -0.8px; margin: 0 0 10px; text-align: center; }
+    .section-lead { text-align: center; color: var(--muted); max-width: 640px; margin: 0 auto 36px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 16px 36px -22px rgba(0, 0, 0, 0.35); }
+    .icon { font-size: 26px; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 12px; background: var(--soft); margin-bottom: 14px; }
+    .card h3 { margin: 0 0 8px; font-size: 19px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    .soon { display: inline-block; margin-top: 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border: 1px dashed var(--line); border-radius: 999px; padding: 3px 10px; }
+
+    /* Screenshot */
+    .shot { padding: 88px 0 24px; }
+    .shot img { display: block; width: 100%; height: auto; border-radius: 18px; border: 1px solid var(--line); box-shadow: 0 30px 70px -34px rgba(0, 0, 0, 0.4); }
+
+    /* Install and privacy */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 760px) { .split { grid-template-columns: 1fr; } .nav-links a.hide-small { display: none; } }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 26px; }
+    .panel h3 { margin: 0 0 10px; font-size: 20px; }
+    .panel ul { margin: 0; padding-left: 20px; color: var(--muted); }
+    .panel li { margin: 6px 0; }
+
+    .cta { text-align: center; padding: 88px 0 40px; }
+    footer { border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; padding: 26px 0 40px; }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+    footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="icon-128.png" alt="">Atlas Translation</a>
+      <div class="nav-links">
+        <a class="hide-small" href="#features">Features</a>
+        <a class="hide-small" href="#install">Install</a>
+        <a class="hide-small" href="privacy-policy.html">Privacy</a>
+        <a href="https://github.com/loxdpsy/AT">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="wrap">
+      <span class="eyebrow">Free and open source</span>
+      <h1>Translate on your own computer</h1>
+      <p class="lead">Text, web pages and PDF files, in your browser. Translate as you type, read a PDF offline, and keep the history on your computer.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/loxdpsy/AT/releases">Download</a>
+        <a class="btn" href="#film">Watch the film</a>
+        <a class="btn" href="https://github.com/loxdpsy/AT">Source code</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="film" id="film">
+    <div class="wrap">
+      <div class="film-frame">
+        <video controls muted playsinline preload="metadata" poster="assets/atlas-demo-poster.png">
+          <source src="assets/atlas-demo.mp4" type="video/mp4">
+          Your browser cannot play this video. <a href="assets/atlas-demo.mp4">Download it</a>.
+        </video>
+      </div>
+      <p class="caption">About 20 seconds. The translation in the film is scripted, so it looks the same each time.</p>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <h2 class="section">Everything in one place</h2>
+      <p class="section-lead">A translator page that feels like the one you know, with your own history and saved items, and an Atlas Helper for the work that stays on your computer.</p>
+      <div class="grid">
+        <article class="card">
+          <div class="icon">&#x2328;&#xFE0F;</div>
+          <h3>Translate as you type</h3>
+          <p>Type or paste text and see the translation at once. Swap languages, search the list, and keep recent choices close.</p>
+        </article>
+        <article class="card">
+          <div class="icon">&#x1F4C4;</div>
+          <h3>PDF files, offline</h3>
+          <p>Open a PDF and choose to translate it to English. The text is read and translated on your computer, with the Atlas Helper and a language pack.</p>
+        </article>
+        <article class="card">
+          <div class="icon">&#x1F310;</div>
+          <h3>Whole web pages</h3>
+          <p>Translate a page with Google, Bing, Yandex, DeepL or LibreTranslate, or with the offline helper when you prefer.</p>
+        </article>
+        <article class="card">
+          <div class="icon">&#x2B07;&#xFE0F;</div>
+          <h3>You choose what to download</h3>
+          <p>Language packs and voices are optional. Pick the ones you want, see the size and licence first, and each download is checked before it is saved.</p>
+        </article>
+        <article class="card">
+          <div class="icon">&#x1F50A;</div>
+          <h3>Reading speed</h3>
+          <p>Listen to the text or the translation at Normal, Slow or Slowest speed, with the voices on your computer.</p>
+          <span class="soon">Helper voices: coming soon</span>
+        </article>
+        <article class="card">
+          <div class="icon">&#x1F50D;</div>
+          <h3>Scanned PDFs</h3>
+          <p>Read the words in scanned pages with OCR, on your own computer. You will choose the OCR engine and the languages to install.</p>
+          <span class="soon">Coming soon</span>
+        </article>
+        <article class="card">
+          <div class="icon">&#x1F4BE;</div>
+          <h3>Saved and history</h3>
+          <p>Save the translations you need. The newest 100 unsaved translations stay in History, and Clear removes only unsaved items.</p>
+        </article>
+        <article class="card">
+          <div class="icon">&#x1F92B;</div>
+          <h3>Starts quietly</h3>
+          <p>The Atlas Helper sits in the tray. No console and no window open when it starts. Open it from the tray icon when you need it.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="shot" aria-label="The translator page">
+    <div class="wrap">
+      <img src="assets/atlas-demo-poster.png" alt="The Atlas Translation translator page: the French sentence Bonjour, comment ça va aujourd'hui ? with its English translation, Hello, how are you today?" loading="lazy">
+    </div>
+  </section>
+
+  <section class="cta" id="install">
+    <div class="wrap">
+      <h2 class="section">Install in a few minutes</h2>
+      <p class="section-lead">Get the extension for your browser, then the Atlas Helper if you want offline translation, PDFs on your computer, and the voices.</p>
+      <div class="split" style="text-align:left">
+        <div class="panel">
+          <h3>1. The browser extension</h3>
+          <ul>
+            <li>Chrome, Edge and Firefox. Download the package for your browser from the releases page.</li>
+            <li>Pin the toolbar button, then open the translator from the menu.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>2. The Atlas Helper</h3>
+          <ul>
+            <li>Windows, macOS and Linux. It runs in the tray, with no console window.</li>
+            <li>Offline translation, PDF translation and the voices come from the helper's Offline tab.</li>
+          </ul>
+        </div>
+      </div>
+      <p style="margin-top:28px"><a class="btn primary" href="https://github.com/loxdpsy/AT/releases">Go to the releases</a></p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span>Atlas Translation is a modified fork of TWP &mdash; Translate Web Pages by FilipePS. Translation services belong to their owners.</span>
+      <span><a href="privacy-policy.html">Privacy policy</a> &middot; <a href="https://github.com/loxdpsy/AT">GitHub</a></span>
+    </div>
+  </footer>
+</body>
+</html>

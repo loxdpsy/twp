@@ -1,6 +1,7 @@
 // The helper's tray icon: the Atlas logo in the notification area, with a menu (Open, Quit).
 // Clicking the icon with the left button opens the window. Closing the window keeps the helper in the tray.
 
+use crate::i18n::tr;
 use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem};
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
@@ -21,8 +22,8 @@ pub struct Tray {
 /// Creates the tray icon from square RGBA pixels (size x size). Fails when the desktop has no tray.
 pub fn create(rgba: Vec<u8>, size: u32) -> Result<Tray, String> {
     let icon = Icon::from_rgba(rgba, size, size).map_err(|e| format!("cannot read the tray icon: {}", e))?;
-    let open = MenuItem::new("Open Atlas Helper", true, None);
-    let quit = MenuItem::new("Quit", true, None);
+    let open = MenuItem::new(tr("Open Atlas Helper"), true, None);
+    let quit = MenuItem::new(tr("Quit"), true, None);
     let menu = Menu::new();
     menu.append(&open).map_err(|e| format!("cannot build the tray menu: {}", e))?;
     menu.append(&quit).map_err(|e| format!("cannot build the tray menu: {}", e))?;

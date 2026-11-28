@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Kræver Atlas Helper og en sprogpakke"
+  },
   "extensionDescription": {
     "message": "Oversæt din side i realtid via Google eller Yandex."
   },

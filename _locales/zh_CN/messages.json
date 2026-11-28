@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "需要 Atlas Helper 和语言包"
+  },
   "extensionDescription": {
     "message": "使用 Google 或 Yandex 实时翻译您的页面。"
   },

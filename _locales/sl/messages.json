@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Potrebuje Atlas Helper in jezikovni paket"
+  },
   "extensionDescription": {
     "message": "Prevedite spletne strani v realnem času z uporabo storitev Google ali Yandex."
   },

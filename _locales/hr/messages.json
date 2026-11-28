@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Potrebni su Atlas Helper i jezični paket"
+  },
   "extensionDescription": {
     "message": "Prevodi stranice izravno koristeći Google ili Yandex."
   },

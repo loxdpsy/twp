@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Atlas Helper hám til paketi kerek"
+  },
   "extensionDescription": {
     "message": "Translate your page in real time using Google or Yandex."
   },

@@ -2,7 +2,7 @@
 
 <p align="center"><img src="icons/icon-128.png" width="96" alt="Atlas Translation logo"></p>
 
-![Version](https://img.shields.io/badge/version-0.0.2.6-1a73e8) ![Release date](https://img.shields.io/github/release-date/loxdpsy/AT?label=release%20date) [![Issues](https://img.shields.io/github/issues/loxdpsy/AT)](https://github.com/loxdpsy/AT/issues) [![Pull requests](https://img.shields.io/github/issues-pr/loxdpsy/AT)](https://github.com/loxdpsy/AT/pulls) [![License: MPL-2.0](https://img.shields.io/github/license/loxdpsy/AT)](LICENSE)
+![Version](https://img.shields.io/badge/version-0.0.2.7-1a73e8) ![Release date](https://img.shields.io/github/release-date/loxdpsy/AT?label=release%20date) [![Issues](https://img.shields.io/github/issues/loxdpsy/AT)](https://github.com/loxdpsy/AT/issues) [![Pull requests](https://img.shields.io/github/issues-pr/loxdpsy/AT)](https://github.com/loxdpsy/AT/pulls) [![License: MPL-2.0](https://img.shields.io/github/license/loxdpsy/AT)](LICENSE)
 
 **Translate web pages in real time, in your browser.**
 
@@ -40,13 +40,26 @@ Other extensions with a similar name are not Atlas Translation. Store links will
   - OpenRouter (AI, your own key; you choose the model)
   - LibreTranslate (your own server and key)
   - When a service fails, the next enabled service that supports the language translates the text. A service that fails three times in a row is skipped for five minutes (see *Notes and limits*).
-- **Text-to-speech** for translated text (Chromium 109+ and Firefox).
+- **Translator page** (toolbar popup menu, *Translator*), like Google Translate:
+  - translate as you type, with a language chooser: chips for the current and recent languages, a full list with search, and a swap button;
+  - Copy, Save, and a History of the newest 100 translations. Saved items stay until you remove them;
+  - **Listen** to the source or the translation, at *Normal*, *Slow* or *Slowest* speed. When the Atlas Helper has an installed read-aloud voice for the language (up to 2000 characters), that voice reads; otherwise this computer's voices do.
+- **PDF translation.** When the tab is a PDF, the toolbar popup offers to translate it (From and To languages). It opens the
+  Translator's PDF tab and translates the text on this computer with the Atlas Helper and an installed language pack (one side must be
+  English). Scanned pages (no text) are read with OCR when you press *Read scanned pages with OCR*, using the helper's text recognition (see below). Limits: 50 MB and 300 pages. The result is text with Copy and
+  Download .txt; the PDF layout is not rebuilt. The document's language is guessed from its text (a best guess, shown in the status).
+  *Show original text* puts each paragraph's source under its translation.
+- **Open the Translator with a keyboard shortcut.** Firefox: `Shift+Alt+Y`. Chromium browsers allow only four built-in shortcut
+  suggestions, so set one yourself at `chrome://extensions/shortcuts` (the command is *Open the Translator*).
+- **Text-to-speech** for translated text in the page translation (Chromium 109+ and Firefox).
 - **Update check** script that uses the GitHub API and respects the rate limit (see *Checking for updates*).
 - **Per-site and per-language rules**: never translate a site or language, always translate, auto-translate links.
 - **Keyboard shortcuts** for toggling, showing the original, and switching services.
 - **About page** with the installed version, credits, license, and links. Open it from the popup's options menu or from Settings.
 - **Themes**: System, Light, or Dark (*Style → Theme*). The settings page and the popup look the same in Chromium browsers and Firefox. The layout follows Chrome's settings page.
 - **Light on memory**: translations are cached with a bounded in-memory cache, and finished requests are released.
+
+The web page: https://loxdpsy.github.io/AT/ (the same page is in `docs/`, published with GitHub Pages).
 
 ## Install
 
@@ -81,9 +94,38 @@ optional. It does three things for the extension:
   pages and selected text can be translated without sending them to a web service.
 - **A window of its own.** A tray icon opens the helper's settings: the folder, the language packs, and the update
   check. It runs in the background from the tray, not in a terminal.
+- **Read-aloud voices (Offline tab).** Choose a language, tick the voices you want (or select all), and install them. The size and each
+  licence are shown first; a voice with terms (Supertone Supertonic 3) needs you to accept them. Each download is checked
+  with SHA-256. The same tab installs the read-aloud runtime once for the computer (sherpa-onnx, Apache-2.0). Reading
+  aloud from the extension is not built yet.
+- **Text recognition (OCR, Offline tab).** Install one of two engines to read text in page pictures. ocrs (English and Latin
+  letters, engine MIT or Apache-2.0, models CC BY-SA 4.0, about 12 MB) is the default. PP-OCRv4 (Chinese and English,
+  Apache-2.0, about 16 MB) is the second. The helper reads pictures sent to it on 127.0.0.1, with the engine asked for when it is installed, or the
+  other installed one. Tesseract is not added yet. The Translator's PDF tab has the OCR button for scanned pages.
+- **Helper updates.** The helper checks GitHub for a newer helper, not only a newer extension. When one is out, the window says
+  "A new version is available, please update" with what is new, and a button opens the release page. The helper does not
+  replace itself; download the new one from the release.
 
 The helper has the same version as the extension (for example 0.0.2.1). Download it from the release next to the
 extension zip. See [tools/atlas-updater/README.md](tools/atlas-updater/README.md) for the details.
+
+### Offline translation and offline voice
+
+- **Translation packs.** Each language pair is a pack of about 37 MB, downloaded once and checked with SHA-256. The
+  helper's Offline tab installs one pack, every pack into one language ("Translate to"), or all packs. A pair needs
+  English on one side. Text is translated on this computer.
+- **Read-aloud voices.** The Offline tab lists the voices for each language. "Install all voices for <language> (recommended)" installs every voice for it after a confirmation. You can instead tick single voices and choose "Install selected". The Offline tab also has "Install all packs (recommended)". "Install the selected voices" asks
+  first, showing the size and each licence. The welcome page offers the English voices after the helper is installed,
+  so the installer itself stays small. Voices come from the k2-fsa sherpa-onnx release and are checked with SHA-256:
+  Supertone Supertonic 3 (31 languages, OpenRAIL-M: you accept its use restrictions before the download), Kokoro v1.1
+  (English and Chinese, Apache-2.0), Kitten nano 0.2 (English, Apache-2.0), and four Piper English voices (public domain, CC0, Apache-2.0, CC BY 4.0). Credits
+  are in [NOTICE.md](NOTICE.md), and the licence texts are in [LICENSES/](LICENSES/README.md).
+- **Text recognition (OCR).** The helper reads text in page pictures, such as scanned PDF pages, with ocrs (English and Latin
+  letters, about 12 MB) or PP-OCRv4 (Apache-2.0, Chinese and English, about 16 MB). The models are downloaded once and checked
+  with SHA-256. The engine runs on this computer; the picture is sent only to the helper on 127.0.0.1. Install either in the
+  Offline tab. The Tesseract engine and more languages are not added yet.
+- **Listen in the Translator** uses an installed helper voice when the runtime and a voice for the language are installed (the Offline tab). Otherwise the computer's voices are used. Other parts of the extension do not use the helper's voices yet.
+  Piper's phonemizer is espeak-ng (GPL-3.0). A licence review is needed before any release that ships the voices.
 
 ## Build from source
 
@@ -207,6 +249,14 @@ too few requests remain. Add `--upstream` to also check FilipePS's project. Set 
 60 to 5,000 requests per hour. The **Update check** workflow runs this every Monday and writes the result to the run summary.
 
 ## Translating the interface
+
+### Helper window and tray
+
+The helper's window and tray text are translated in `tools/atlas-updater/i18n/`, one JSON file per language, keyed by the
+English text. Batches 1 to 8 cover 39 languages: Chinese (Simplified and Traditional), Hindi, Spanish, Arabic, French, Bengali, Portuguese (Brazil and Portugal), Russian, Japanese, Vietnamese, German, Korean, Turkish, Italian, Polish, Dutch, Ukrainian, Czech, Thai, Greek, Hebrew, Persian, Catalan, Danish, Finnish, Croatian, Hungarian, Romanian, Swedish, Norwegian, Serbian, Slovenian, Latvian, Icelandic, Afrikaans, Uyghur and Karakalpak. Santali has no translation yet and shows English. A string with no translation shows in
+English. Check that a translation keeps its placeholders (`{}`); `tests/unit/helperI18n.test.mjs` runs that check.
+
+### Extension
 
 The interface strings live in `_locales/<language>/messages.json`, with English in `_locales/en`. To see what a
 language still needs:

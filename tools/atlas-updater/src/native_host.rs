@@ -97,7 +97,7 @@ fn ensure_helper_running() -> bool {
     if TcpStream::connect_timeout(&address, Duration::from_millis(300)).is_ok() {
         return false;
     }
-    let exe = match std::env::current_exe() {
+    let exe = match crate::autostart::program() {
         Ok(path) => path,
         Err(_) => return false,
     };
@@ -119,7 +119,7 @@ fn ensure_helper_running() -> bool {
 /// allowed origin, so a second extension copy (for example an unpacked one) can use it too.
 pub fn register_origin(origin: &str) -> Result<(), String> {
     let origins = add_origin(origin)?;
-    let exe = std::env::current_exe().map_err(|e| format!("cannot find the helper program: {}", e))?;
+    let exe = crate::autostart::program()?;
     let exe_path = exe.display().to_string();
     let firefox_text = manifest_text(&exe_path, "allowed_extensions", &[FIREFOX_ID.to_string()]);
     let firefox_file = store::data_dir().join("native-host").join("firefox").join(MANIFEST_FILE);

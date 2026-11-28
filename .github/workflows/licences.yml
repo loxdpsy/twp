@@ -1,0 +1,86 @@
+# Checks the licence of every Rust crate that the Atlas Helper uses, against the allowlist in tools/atlas-updater/deny.toml,
+# and keeps the list of crates and licences as an artifact (crate-licences.json).
+name: Licences
+
+on:
+  push:
+    paths:
+      - "tools/atlas-updater/Cargo.toml"
+      - "tools/atlas-updater/deny.toml"
+      - ".github/workflows/licences.yml"
+  pull_request:
+    paths:
+      - "tools/atlas-updater/Cargo.toml"
+      - "tools/atlas-updater/deny.toml"
+      - ".github/workflows/licences.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  crates:
+    name: Crate licences (cargo-deny)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: tools/atlas-updater
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust (the helper window needs Rust 1.92 or later)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      # The output is kept in an artifact too, because the run log is not always downloadable.
+      - name: Every crate's licence is on the allowlist
+        env:
+          NO_COLOR: "1"
+        run: cargo deny check licenses 2>&1 | tee "$RUNNER_TEMP/deny-check.log"
+
+      # The run log and the artifacts are not always downloadable, so the errors also appear as annotations on the run.
+      - name: The licence problems (as annotations)
+        if: failure()
+        run: |
+          python3 - "$RUNNER_TEMP/deny-check.log" <<'PY'
+          import sys
+          import re
+          ansi = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+          lines = [ansi.sub("", l).rstrip() for l in open(sys.argv[1], encoding="utf-8", errors="replace")]
+          hits = [i for i, l in enumerate(lines) if l.lstrip().startswith("error")]
+          for i in hits[:15]:
+              text = " | ".join(x.strip() for x in lines[i:i + 6] if x.strip())
+              print("::error::" + text.replace("%", "%25"))
+          if not hits:
+              print("::error::cargo-deny failed without an error line. The last lines of its output follow.")
+              for l in [x for x in lines if x.strip()][-12:]:
+                  print("::error::" + l.strip().replace("%", "%25"))
+          PY
+
+      - name: List every crate and its licence
+        if: always()
+        run: cargo deny list --format json > "$RUNNER_TEMP/crate-licences.json" 2> "$RUNNER_TEMP/deny-list.log" || true
+
+      - name: Keep the list and the check output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crate-licences
+          path: |
+            ${{ runner.temp }}/crate-licences.json
+            ${{ runner.temp }}/deny-check.log
+            ${{ runner.temp }}/deny-list.log
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "## Crate licences" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The check uses the allowlist in tools/atlas-updater/deny.toml. The full list is in the crate-licences artifact." >> "$GITHUB_STEP_SUMMARY"

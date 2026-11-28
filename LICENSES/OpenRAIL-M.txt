@@ -1,0 +1,7 @@
+BigScience Open RAIL-M License (dated August 18, 2022)
+
+Used for: the Supertonic 3 voice model (Supertone Inc.), with use restrictions. You accept these terms in the helper before
+the download. The sample code of that model is MIT.
+
+The full licence is published with the model at:
+https://huggingface.co/Supertone/supertonic-3/blob/main/LICENSE

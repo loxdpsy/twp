@@ -1,6 +1,6 @@
 [package]
 name = "atlas-updater"
-version = "0.0.2+6"
+version = "0.0.2+7"
 edition = "2021"
 description = "Atlas Translation helper: a native window and tray icon that installs the extension, the offline engine and the language packs."
 license = "MPL-2.0"
@@ -15,6 +15,19 @@ libloading = "0.8"
 ureq = "2"
 # Unzips the downloads itself, on every system, not with PowerShell or unzip.
 zip = { version = "2", default-features = false, features = ["deflate"] }
+# Unpacks the read-aloud voice archives (.tar.bz2) itself, the same way.
+bzip2 = "0.5"
+tar = "0.4"
+# Reads the text of a page picture (PNG or JPEG) for offline OCR. Pure Rust, no native library.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+# Runs the PP-OCRv4 text models (ONNX) in pure Rust. The helper needs no native inference library.
+tract-onnx = "0.21"
+# The second text recognition engine (ocrs, MIT or Apache-2.0), in pure Rust. Its models are the .rten files, so the
+# rten_format feature is on and the ONNX format is left out. rten is named directly because the engine takes its models.
+ocrs = { version = "0.14", default-features = false, features = ["rten"] }
+rten = { version = "0.28", default-features = false }
+# The page picture arrives from the extension as base64.
+base64 = "0.22"
 eframe = { version = "0.37", default-features = false, features = ["glow", "default_fonts", "clipboard", "wayland", "x11"] }
 
 # The system language, so the window can mirror its layout for right-to-left languages (Arabic, Hebrew, Persian ...).

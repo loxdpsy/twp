@@ -1,0 +1,6 @@
+CC0 1.0 Universal (public domain dedication)
+
+Used for: the Joe (en_US) Piper voice. No attribution is required by the licence.
+
+The full legal code is published by Creative Commons at:
+https://creativecommons.org/publicdomain/zero/1.0/legalcode

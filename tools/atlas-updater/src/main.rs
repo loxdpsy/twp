@@ -24,14 +24,18 @@ mod browsers;
 mod engine;
 mod enginelib;
 mod gui;
+mod i18n;
 mod json;
 mod native_host;
+mod ocr;
 mod packs;
 mod settings;
+mod speak;
 mod sha256;
 mod store;
 mod tray;
 mod transfer;
+mod voices;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -59,6 +63,19 @@ struct Release {
 /// because Cargo needs three numbers; the fourth part is build metadata. See scripts/sync-version.mjs.
 pub fn app_version() -> String {
     env!("CARGO_PKG_VERSION").replace('+', ".")
+}
+
+/// The releases page. A new helper is downloaded from its release (the helper cannot replace itself while it runs).
+pub const RELEASES_PAGE: &str = "https://github.com/loxdpsy/AT/releases";
+
+/// The helper's own update check. The helper and the extension share one version number, so the newest release is the
+/// newest helper too. Returns the line to show when that release is newer than this helper, otherwise None.
+pub fn helper_update_text(latest: &str) -> Option<String> {
+    if is_newer(latest, &app_version()) {
+        Some(format!("A new version is available, please update: Atlas Helper {}.", latest))
+    } else {
+        None
+    }
 }
 
 fn main() {
@@ -96,6 +113,9 @@ fn run() -> Result<(), String> {
     println!("Installed: {} {} in {}", EXTENSION_NAME, installed, folder.display());
 
     let release = fetch_latest_release()?;
+    if let Some(text) = helper_update_text(&release.version) {
+        println!("{}", text);
+    }
     if !is_newer(&release.version, &installed) {
         println!("You have the latest version ({}). Nothing to install.", installed);
         return Ok(());
@@ -357,6 +377,13 @@ fn copy_tree(from: &Path, to: &Path) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn helper_update_text_only_when_the_release_is_newer() {
+        assert!(helper_update_text("999.0.0.0").is_some());
+        assert!(helper_update_text(&app_version()).is_none());
+        assert!(helper_update_text("0.0.0.1").is_none());
+    }
 
     #[test]
     fn reads_the_changelog_bullets_and_stops_at_the_download_list() {

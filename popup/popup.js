@@ -282,7 +282,13 @@ twpConfig.onReady().then(() => twpI18n.updateUiMessages()).then(() => {
       })
     ]);
 
-    return [siteGroup, langGroup, pageGroup, appGroup].filter(Boolean);
+    const translatorGroup = menuGroup([
+      menuItem(text("btnOpenTranslator", "Translator"), "globe", () => {
+        chrome.tabs.create({ url: chrome.runtime.getURL("/translator/translator.html") }, closePopupAfter);
+      })
+    ]);
+
+    return [translatorGroup, siteGroup, langGroup, pageGroup, appGroup].filter(Boolean);
   }
 
   function menuGroup(items) {

@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Vereist de Atlas Helper en een taalpakket"
+  },
   "extensionDescription": {
     "message": "Vertaal uw pagina in realtime met Google of Yandex."
   },

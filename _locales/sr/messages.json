@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Потребни су Atlas Helper и језички пакет"
+  },
   "extensionDescription": {
     "message": "Преведите своју страницу у реалном времену користећи Гоогле или Иандек."
   },

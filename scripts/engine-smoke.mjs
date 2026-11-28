@@ -26,9 +26,16 @@ const pack = catalogue.packs.find(p => p.pair === "enfr");
 if (!pack) throw new Error("the catalogue has no English to French pack");
 
 const dir = await mkdtemp(path.join(os.tmpdir(), "atlas-engine-smoke-"));
+// ATLAS_FP32_MODEL_URL: a float32 model (the .npz of a training run) replaces the int8 model of the pack. It is not in
+// the catalogue yet, so its size and SHA-256 are printed instead of checked. This is the ARM build's test.
+const fp32Url = process.env.ATLAS_FP32_MODEL_URL || "";
+const files = fp32Url
+  ? [{ name: "model.enfr.npz", url: fp32Url, size: null, sha256: null },
+     ...pack.files.filter(f => !f.name.startsWith("model."))]
+  : pack.files;
 // Every file is tried, so the log shows which ones the download host refuses, not only the first.
 const refused = [];
-for (const file of pack.files) {
+for (const file of files) {
   const response = await fetch(file.url, { redirect: "follow" });
   if (!response.ok) {
     refused.push(`${file.name}: HTTP ${response.status} from ${response.url}`);
@@ -36,11 +43,15 @@ for (const file of pack.files) {
     continue;
   }
   const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length !== file.size) throw new Error(`${file.name}: size ${bytes.length}, catalogue says ${file.size}`);
   const sha = createHash("sha256").update(bytes).digest("hex");
-  if (sha !== file.sha256) throw new Error(`${file.name}: SHA-256 ${sha}, catalogue says ${file.sha256}`);
+  if (file.size == null) {
+    console.log(`  info  ${file.name}: ${bytes.length} bytes, SHA-256 ${sha} (not in the catalogue)`);
+  } else {
+    if (bytes.length !== file.size) throw new Error(`${file.name}: size ${bytes.length}, catalogue says ${file.size}`);
+    if (sha !== file.sha256) throw new Error(`${file.name}: SHA-256 ${sha}, catalogue says ${file.sha256}`);
+    console.log(`  ok    ${file.name} (${bytes.length} bytes, SHA-256 checked)`);
+  }
   await writeFile(path.join(dir, file.name), bytes);
-  console.log(`  ok    ${file.name} (${bytes.length} bytes, SHA-256 checked)`);
 }
 if (refused.length) throw new Error(`download failed for ${refused.length} file(s):\n  ${refused.join("\n  ")}`);
 

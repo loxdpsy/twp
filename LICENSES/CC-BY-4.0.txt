@@ -1,0 +1,7 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Used for: the Cori (en_GB) Piper voice, from the Hi-Fi Multi-Speaker English TTS dataset (NVIDIA) and the LibriVox reader
+Cori Samuel. Attribution: "Cori Samuel, LibriVox; Hi-Fi TTS, NVIDIA, CC BY 4.0".
+
+The full legal code is published by Creative Commons at:
+https://creativecommons.org/licenses/by/4.0/legalcode

@@ -25,12 +25,14 @@ function element() {
   return {
     textContent: "", hidden: false, value: "", checked: false, disabled: false,
     className: "", type: "", name: "",
-    addEventListener() {}, append() {}, replaceChildren() {},
+    addEventListener(type, fn) { (this.listeners ||= {})[type] = [...(this.listeners?.[type] || []), fn]; }, append() {}, replaceChildren() {},
   };
 }
 
 // The helper answer for each test is set in `answer`.
 let answer = null;
+let boundToken = "";
+const removedTabs = [];
 const elements = {};
 const byId = id => (elements[id] ||= element());
 
@@ -50,12 +52,15 @@ async function runPage(helperAnswer) {
       if (answer === "down") throw new TypeError("connection refused");
       return { json: async () => answer };
     },
-    twpConfig: { onReady: () => Promise.resolve(), get: () => [], set() {} },
+    twpConfig: { onReady: () => Promise.resolve(), get: key => (key === "offlineHelperToken" ? boundToken : []), set() {} },
     twpI18n: {
       getMessage: (key, substitution) => msg(key, substitution),
       updateUiMessages: () => Promise.resolve(),
     },
-    chrome: { storage: { local: { set: (obj, cb) => cb && cb() } } },
+    chrome: {
+      storage: { local: { set: (obj, cb) => cb && cb() } },
+      tabs: { getCurrent: cb => cb({ id: 42 }), remove: id => removedTabs.push(id) },
+    },
   };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(ROOT + "onboarding/onboarding.js", "utf8"), ctx, { filename: "onboarding.js" });
@@ -78,6 +83,22 @@ assert.ok(withPairs.includes("Offline tab"), "the page says where to change them
 // Helper running, pairs installed, engine missing
 const noEngine = await runPage({ ok: true, engine: false, packs: ["enfr"] });
 assert.ok(noEngine.includes("enfr") && noEngine.includes("offline engine is not installed"), "the engine note is added");
+
+// Save closes the setup tab. The helper is connected here, so there is no note to keep on screen.
+boundToken = "token";
+await runPage({ ok: true, engine: true, packs: ["enfr"] });
+byId("btnSave").listeners.click.forEach(fn => fn());
+await new Promise(resolve => setTimeout(resolve, 20));
+assert.deepEqual([...removedTabs], [42], "Save closes the setup tab");
+
+// Not connected yet: the note stays on screen, so the tab is not closed straight away.
+boundToken = "";
+removedTabs.length = 0;
+await runPage({ ok: true, engine: true, packs: ["enfr"] });
+byId("btnSave").listeners.click.forEach(fn => fn());
+await new Promise(resolve => setTimeout(resolve, 20));
+assert.strictEqual(removedTabs.length, 0, "the tab stays open while the connect note is shown");
+assert.ok(byId("result").textContent.includes("Connect this browser"), "the connect note is shown");
 
 // Something else answers on the port
 assert.ok((await runPage({ ok: false })).includes("not running"), "an answer that is not the helper is treated as not running");

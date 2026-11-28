@@ -47,6 +47,7 @@ jobs:
         run: |
           set -o pipefail
           node run.mjs 2>&1 | tee browser-tests.log
+          node translator.mjs 2>&1 | tee -a browser-tests.log
 
       - name: Write the job summary
         if: always()

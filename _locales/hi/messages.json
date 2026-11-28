@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Atlas Helper और एक भाषा पैक की ज़रूरत है"
+  },
   "extensionDescription": {
     "message": "Google या Yandex का उपयोग करके वास्तविक समय में अपने पृष्ठ का अनुवाद करें।"
   },

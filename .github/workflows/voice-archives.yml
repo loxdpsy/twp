@@ -1,0 +1,79 @@
+# Downloads every read-aloud voice archive from the k2-fsa sherpa-onnx release, checks its size and SHA-256 against
+# tools/atlas-updater/src/voices.json, and lists what it contains. The job summary says whether each archive has
+# espeak-ng-data (GPL-3.0 phoneme data) and which licence files it carries. The listings are kept as an artifact.
+name: Voice archives
+
+on:
+  push:
+    paths:
+      - "tools/atlas-updater/src/voices.json"
+      - ".github/workflows/voice-archives.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  archives:
+    name: Voice archives (size, SHA-256 and contents)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download, check and list each archive
+        id: check
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/voice-archives"
+          mkdir -p "$work"
+          python3 - "$work" <<'PY'
+          import hashlib, json, os, subprocess, sys
+
+          work = sys.argv[1]
+          summary = os.environ["GITHUB_STEP_SUMMARY"]
+          catalogue = json.load(open("tools/atlas-updater/src/voices.json", encoding="utf-8"))
+          rows = []
+          problems = []
+          for voice in catalogue["voices"]:
+              name = voice["id"]
+              path = os.path.join(work, voice["file"])
+              subprocess.run(["curl", "-fsSL", "--retry", "3", "-o", path, voice["url"]], check=True)
+              size = os.path.getsize(path)
+              with open(path, "rb") as f:
+                  digest = hashlib.sha256(f.read()).hexdigest()
+              size_ok = size == voice["bytes"]
+              sum_ok = digest == voice["sha256"]
+              if not size_ok or not sum_ok:
+                  problems.append(f"{name}: size {'ok' if size_ok else 'differs'}, SHA-256 {'ok' if sum_ok else 'differs'}")
+              listing = subprocess.run(["tar", "-tjf", path], capture_output=True, text=True, check=True).stdout.splitlines()
+              with open(os.path.join(work, name + ".txt"), "w", encoding="utf-8") as out:
+                  out.write("\n".join(listing) + "\n")
+              espeak = [n for n in listing if "espeak-ng-data/" in n]
+              for member in [n for n in listing if os.path.basename(n.rstrip("/")).upper().startswith(("COPYING", "LICENSE", "NOTICE"))][:2]:
+                  text = subprocess.run(["tar", "-xjOf", path, member], capture_output=True, text=True).stdout
+                  first = [x.strip() for x in text.splitlines() if x.strip()][:2]
+                  print(f"::notice title=Licence file {name}::{member}: " + " / ".join(first).replace("%", "%25"))
+              licences = [n for n in listing if os.path.basename(n.rstrip("/")).upper().startswith(("COPYING", "LICENSE", "NOTICE"))]
+              rows.append((name, size, "ok" if size_ok else "differs", "ok" if sum_ok else "differs", len(espeak), licences))
+              # Also as an annotation, so the result shows on the run page even when the summary is not reachable.
+              print(f"::notice title=Voice {name}::{size} bytes, size {'ok' if size_ok else 'differs'}, SHA-256 {'ok' if sum_ok else 'differs'}, espeak-ng-data files: {len(espeak)}, licence files: {', '.join(licences) or 'none'}")
+
+          with open(summary, "a", encoding="utf-8") as out:
+              out.write("## Voice archives\n\n")
+              out.write("| Voice | Bytes | Size check | SHA-256 check | espeak-ng-data files | Licence files in the archive |\n")
+              out.write("| --- | --- | --- | --- | --- | --- |\n")
+              for name, size, size_state, sha_state, espeak_count, licences in rows:
+                  out.write(f"| {name} | {size:,} | {size_state} | {sha_state} | {espeak_count} | {', '.join(licences) or 'none'} |\n")
+              out.write("\nA voice whose archive has espeak-ng-data carries GPL-3.0 phoneme data. See LICENSES/GPL-3.0.txt and NOTICE.md.\n\n")
+          if problems:
+              print("\n".join(problems))
+              sys.exit(1)
+          PY
+
+      - name: Keep the archive listings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: voice-archive-listings
+          path: ${{ runner.temp }}/voice-archives/*.txt
+          if-no-files-found: warn

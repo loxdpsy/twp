@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Necesită Atlas Helper și un pachet de limbă"
+  },
   "extensionDescription": {
     "message": "Tradu pagina în timp real folosind Google sau Yandex."
   },

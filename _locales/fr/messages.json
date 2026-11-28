@@ -1,4 +1,7 @@
 {
+  "msgOfflineNeedsHelper": {
+    "message": "Nécessite l'Atlas Helper et un pack de langue"
+  },
   "extensionDescription": {
     "message": "Traduisez votre page en temps réel grâce à Google ou Yandex."
   },

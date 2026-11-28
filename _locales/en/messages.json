@@ -837,7 +837,7 @@
     "message": "Text on this page is sent to DeepL to be translated."
   },
   "msgOfflineNeedsHelper": {
-    "message": "Needs the Atlas Helper"
+    "message": "Needs the Atlas Helper and a language pack"
   },
   "msgOfflineTitle": {
     "message": "Offline (desktop helper)"

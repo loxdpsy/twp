@@ -112,6 +112,13 @@ pub fn install_from_latest_release(transfer: &Transfer) -> Result<String, String
     let tag = release.get("tag_name").and_then(|v| v.as_str()).ok_or("the latest release has no tag_name")?;
     let version = tag.trim_start_matches(|c: char| c == 'v' || c == 'V').to_string();
     let assets = release.get("assets").and_then(|v| v.as_array()).ok_or("the latest release has no assets")?;
+    // The Linux and macOS packages carry the engine, so a release does not need a separate copy of it.
+    if !assets.iter().any(|a| a.get("name").and_then(|v| v.as_str()) == Some(asset)) {
+        return Err(format!(
+            "This release has no separate offline engine ({}). Install Atlas Helper from the AppImage (Linux) or the DMG (macOS), which include the engine.",
+            asset
+        ));
+    }
     let folder = store::data_dir().join("engine");
     fs::create_dir_all(&folder).map_err(|e| format!("cannot create {}: {}", folder.display(), e))?;
 

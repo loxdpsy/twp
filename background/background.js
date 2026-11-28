@@ -542,6 +542,10 @@ twpConfig.onReady(() => {
 });
 if (typeof chrome.commands !== "undefined") {
   chrome.commands.onCommand.addListener(command => {
+    if (command === "open-translator") {
+      chrome.tabs.create({ url: chrome.runtime.getURL("translator/translator.html") });
+      return;
+    }
     if (command === "hotkey-toggle-translation") {
       chrome.tabs.query({
         currentWindow: true,

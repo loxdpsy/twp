@@ -4,6 +4,8 @@
 //   GET  /api/offline/ping                  what is installed (no secret)
 //   POST /api/offline/unbind                 Authorization: Bearer <token> (removes this binding)
 //   POST /api/offline/translate              Authorization: Bearer <token>, {"pair": "enfr", "texts": ["..."]}
+//   POST /api/offline/speak                  Authorization: Bearer <token>, {"voice": "supertonic-3", "text": "...", "reading": "normal"}
+//   POST /api/offline/ocr                    Authorization: Bearer <token>, {"image": "<base64 PNG or JPEG>", "engine": "ppocr"}
 //
 // Only extension pages may call it: the Origin must be chrome-extension:// or moz-extension://, and the Host must be
 // this computer. Translation needs a token from a binding the user allowed in the helper window (see bind.rs). A web page cannot read the
@@ -17,11 +19,16 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use base64::Engine as _;
+
 use crate::bind::{self, BindRequest, Bindings, Shared};
 use crate::engine::{self, Engine};
 use crate::json;
+use crate::ocr;
 use crate::packs;
+use crate::speak;
 use crate::store;
+use crate::voices;
 
 pub const PORT: u16 = 47632;
 
@@ -30,9 +37,9 @@ pub const PORT: u16 = 47632;
 pub const PROTOCOL: u32 = 2;
 
 /// What this helper can do. An extension uses the features it knows, and ignores the rest.
-const FEATURES: &[&str] = &["offline", "packs", "bind", "translate"];
+const FEATURES: &[&str] = &["offline", "packs", "bind", "translate", "speak", "ocr"];
 /// The most a request body may be. A page is translated in batches, so this is generous.
-const MAX_BODY: usize = 4 * 1024 * 1024;
+const MAX_BODY: usize = 16 * 1024 * 1024;
 /// The most texts in one request.
 const MAX_TEXTS: usize = 500;
 /// How long the window has to answer a bind request before the extension gets a timeout.
@@ -191,11 +198,35 @@ fn handle(stream: &mut TcpStream, engine: &Engine, bindings: &Shared, requests: 
                 send(stream, 403, allow, &error_body("this browser is not bound"))
             }
         }
+        ("POST", "/api/offline/speak") => {
+            // The token is checked under the lock, which is then released: speaking can take a few seconds.
+            let token = request.header("authorization").and_then(|h| h.strip_prefix("Bearer "));
+            let allowed = {
+                let guard = bindings.lock().unwrap_or_else(|p| p.into_inner());
+                token_allowed(&guard, token)
+            };
+            let (status, body) = speak_request(&request.body, allowed);
+            send(stream, status, allow, &body)
+        }
+        ("POST", "/api/offline/ocr") => {
+            // As for speaking, the lock is released before the text is read.
+            let token = request.header("authorization").and_then(|h| h.strip_prefix("Bearer "));
+            let allowed = {
+                let guard = bindings.lock().unwrap_or_else(|p| p.into_inner());
+                token_allowed(&guard, token)
+            };
+            let (status, body) = ocr_request(&request.body, allowed, &store::data_dir());
+            send(stream, status, allow, &body)
+        }
         ("POST", "/api/offline/translate") => {
             let token = request.header("authorization").and_then(|h| h.strip_prefix("Bearer "));
             let (status, body) = {
-                let guard = bindings.lock().unwrap_or_else(|p| p.into_inner());
-                translate_request(&request.body, engine, token, &guard)
+                // The token is checked under the lock, which is released before the (slow) translation.
+                let allowed = {
+                    let guard = bindings.lock().unwrap_or_else(|p| p.into_inner());
+                    token_allowed(&guard, token)
+                };
+                translate_allowed(&request.body, engine, allowed)
             };
             send(stream, status, allow, &body)
         }
@@ -216,13 +247,34 @@ fn ping_body() -> String {
     // The protocol number and the features let an extension of another version use what this helper supports, and skip
     // the rest. An unknown field or feature is ignored by the extension, so a newer helper is never a failure for it.
     let features: Vec<String> = FEATURES.iter().map(|f| json::quote(f)).collect();
+    // The read-aloud voices that are installed, with the languages each one speaks, so the extension can pick one for
+    // a language. The runtime must be installed too; the extension speaks in the browser otherwise.
+    let data = store::data_dir();
+    // The text recognition engines whose models are installed. "ocr" is true when at least one is.
+    let ocr_engines: Vec<String> = ocr::installed_engines(&data).iter().map(|e| json::quote(e)).collect();
+    let voices_root = data.join("voices");
+    let speech_voices: Vec<String> = match voices::catalogue() {
+        Ok(list) => list
+            .iter()
+            .filter(|v| voices::is_installed_in(&voices_root, v))
+            .map(|v| {
+                let languages: Vec<String> = v.languages.iter().map(|l| json::quote(l)).collect();
+                format!("{{\"id\":{},\"languages\":[{}]}}", json::quote(&v.id), languages.join(","))
+            })
+            .collect(),
+        Err(_) => Vec::new(),
+    };
     format!(
-        "{{\"ok\":true,\"name\":\"Atlas Helper\",\"version\":{},\"protocol\":{},\"features\":[{}],\"engine\":{},\"packs\":[{}]}}",
+        "{{\"ok\":true,\"name\":\"Atlas Helper\",\"version\":{},\"protocol\":{},\"features\":[{}],\"engine\":{},\"packs\":[{}],\"speech\":{{\"runtime\":{},\"voices\":[{}]}},\"ocr_engines\":[{}],\"ocr\":{}}}",
         json::quote(&crate::app_version()),
         PROTOCOL,
         features.join(","),
         engine::find_binary().is_some(),
-        installed.join(",")
+        installed.join(","),
+        speak::runtime_installed(&data),
+        speech_voices.join(","),
+        ocr_engines.join(","),
+        !ocr::installed_engines(&data).is_empty()
     )
 }
 
@@ -249,19 +301,116 @@ fn bind_request(body: &str, origin: Option<&str>, requests: &Sender<BindRequest>
     }
 }
 
-/// Returns the HTTP status and the JSON body for a translate request.
-fn translate_request(body: &str, engine: &Engine, token: Option<&str>, bindings: &Bindings) -> (u16, String) {
-    translate_from(body, engine, token, bindings, &store::packs_dir(), engine::find_binary())
+/// Whether the request's token belongs to a bound browser.
+fn token_allowed(bindings: &Bindings, token: Option<&str>) -> bool {
+    token.map_or(false, |t| bindings.verify(t))
 }
 
-/// The translate request, with the packs folder and the engine program given. It needs no network: the language list is
-/// built into the helper, and the packs and the engine are read from disk.
-fn translate_from(body: &str, engine: &Engine, token: Option<&str>, bindings: &Bindings, packs_root: &Path, binary: Option<PathBuf>) -> (u16, String) {
+/// Returns the HTTP status and the JSON body for a speak request.
+fn speak_request(body: &str, allowed: bool) -> (u16, String) {
+    speak_from(body, allowed, &store::data_dir())
+}
+
+/// Returns the HTTP status and the JSON body for an OCR request. The picture is base64 (PNG or JPEG), with or without
+/// its data: address. The models are read from the data folder.
+fn ocr_request(body: &str, allowed: bool, data: &Path) -> (u16, String) {
     let value = match json::parse(body) {
         Ok(v) => v,
         Err(_) => return (400, error_body("the request is not valid JSON")),
     };
-    if !token.map_or(false, |t| bindings.verify(t)) {
+    if !allowed {
+        return (403, error_body("this browser is not bound to the helper. Bind it again from the extension."));
+    }
+    let requested = value.get("engine").and_then(|v| v.as_str()).unwrap_or(ocr::ENGINE_OCRS);
+    if requested != ocr::ENGINE_PPOCR && requested != ocr::ENGINE_OCRS {
+        return (400, error_body("this text recognition engine is not available"));
+    }
+    let encoded = value.get("image").and_then(|v| v.as_str()).unwrap_or("");
+    let encoded = encoded.rsplit(',').next().unwrap_or("").trim();
+    let picture = match base64::engine::general_purpose::STANDARD.decode(encoded) {
+        Ok(bytes) if !bytes.is_empty() => bytes,
+        _ => return (400, error_body("the picture is not valid base64")),
+    };
+    // The engine asked for when it is installed, otherwise the other installed one.
+    let Some(engine) = ocr::engine_for(data, requested) else {
+        return (409, error_body("the text recognition models are not installed. Install them in the helper's Offline tab."));
+    };
+    match ocr::recognise(data, engine, &picture) {
+        Ok(lines) => (200, lines_body(&lines)),
+        Err(message) => (500, error_body(&message)),
+    }
+}
+
+fn lines_body(lines: &[ocr::Line]) -> String {
+    let items: Vec<String> = lines
+        .iter()
+        .map(|l| {
+            format!(
+                "{{\"text\":{},\"box\":[{},{},{},{}]}}",
+                json::quote(&l.text),
+                l.bbox[0],
+                l.bbox[1],
+                l.bbox[2],
+                l.bbox[3]
+            )
+        })
+        .collect();
+    format!("{{\"lines\":[{}]}}", items.join(","))
+}
+
+/// The speak request, with the data folder given. The voice and the runtime are read from disk. The sound plays on
+/// this computer on its own thread, so the answer does not wait for the end of the sentence.
+fn speak_from(body: &str, allowed: bool, data: &Path) -> (u16, String) {
+    let value = match json::parse(body) {
+        Ok(v) => v,
+        Err(_) => return (400, error_body("the request is not valid JSON")),
+    };
+    if !allowed {
+        return (403, error_body("this browser is not bound to the helper. Bind it again from the extension."));
+    }
+    let voice_id = value.get("voice").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let text = value.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let reading = value.get("reading").and_then(|v| v.as_str()).unwrap_or("normal").to_string();
+    let list = match voices::catalogue() {
+        Ok(l) => l,
+        Err(e) => return (500, error_body(&e)),
+    };
+    let voice = match list.iter().find(|v| v.id == voice_id) {
+        Some(v) => v,
+        None => return (400, error_body("this voice is not in the helper's list")),
+    };
+    if !voices::is_installed_in(&data.join("voices"), voice) {
+        return (409, error_body(&format!("{} is not installed. Install it in the helper's Offline tab.", voice.name)));
+    }
+    if !speak::runtime_installed(data) {
+        return (409, error_body("the read-aloud runtime is not installed. Install it in the helper's Offline tab."));
+    }
+    let file = match speak::synthesize(data, voice, &text, speak::speed_for(&reading)) {
+        Ok(f) => f,
+        Err(e) => return (500, error_body(&e)),
+    };
+    thread::spawn(move || {
+        let _ = speak::play(&file);
+    });
+    (200, "{\"ok\":true}".to_string())
+}
+
+fn translate_request(body: &str, engine: &Engine, token: Option<&str>, bindings: &Bindings) -> (u16, String) {
+    translate_allowed(body, engine, token_allowed(bindings, token))
+}
+
+fn translate_allowed(body: &str, engine: &Engine, allowed: bool) -> (u16, String) {
+    translate_from(body, engine, allowed, &store::packs_dir(), engine::find_binary())
+}
+
+/// The translate request, with the packs folder and the engine program given. It needs no network: the language list is
+/// built into the helper, and the packs and the engine are read from disk.
+fn translate_from(body: &str, engine: &Engine, allowed: bool, packs_root: &Path, binary: Option<PathBuf>) -> (u16, String) {
+    let value = match json::parse(body) {
+        Ok(v) => v,
+        Err(_) => return (400, error_body("the request is not valid JSON")),
+    };
+    if !allowed {
         return (403, error_body("this browser is not bound to the helper. Bind it again from the extension."));
     }
     let pair = value.get("pair").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -316,6 +465,52 @@ mod tests {
         let mut bindings = Bindings::in_memory();
         let token = bindings.add("Test browser").unwrap();
         (bindings, token)
+    }
+
+    #[test]
+    fn ping_reports_the_speech_and_ocr_state() {
+        // The extension picks a read-aloud voice and checks for text recognition from these fields.
+        let body = json::parse(&ping_body()).expect("the ping answer is valid JSON");
+        let speech = body.get("speech").expect("the ping answer has a speech object");
+        assert!(speech.get("runtime").is_some());
+        assert!(speech.get("voices").and_then(|v| v.as_array()).is_some());
+        assert!(body.get("ocr").is_some());
+        assert!(body.get("features").and_then(|v| v.as_array()).unwrap().iter().any(|f| f.as_str() == Some("ocr")));
+    }
+
+    #[test]
+    fn speaking_needs_a_bound_browser_and_a_known_voice() {
+        let (bindings, token) = bound();
+        let dir = std::env::temp_dir().join(format!("atlas-api-speak-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let body = "{\"voice\":\"supertonic-3\",\"text\":\"hi\"}";
+        assert_eq!(speak_from(body, token_allowed(&bindings, None), &dir).0, 403, "no token");
+        assert_eq!(speak_from(body, token_allowed(&bindings, Some("wrong")), &dir).0, 403, "unbound token");
+        let allowed = token_allowed(&bindings, Some(&token));
+        assert_eq!(speak_from("not json", allowed, &dir).0, 400);
+        assert_eq!(speak_from("{\"voice\":\"nope\",\"text\":\"hi\"}", allowed, &dir).0, 400);
+        // A known voice that is not installed is reported as 409 with a clear message.
+        let (status, text) = speak_from(body, allowed, &dir);
+        assert_eq!(status, 409);
+        assert!(text.contains("not installed"), "{}", text);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reading_text_needs_a_bound_browser_and_installed_models() {
+        let (bindings, token) = bound();
+        let dir = std::env::temp_dir().join(format!("atlas-api-ocr-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let body = "{\"image\":\"aGk=\"}";
+        assert_eq!(ocr_request(body, token_allowed(&bindings, None), &dir).0, 403, "no token");
+        assert_eq!(ocr_request("not json", true, &dir).0, 400);
+        assert_eq!(ocr_request("{\"image\":\"aGk=\",\"engine\":\"tesseract\"}", true, &dir).0, 400);
+        assert_eq!(ocr_request("{\"image\":\"!!\"}", true, &dir).0, 400, "bad base64");
+        let allowed = token_allowed(&bindings, Some(&token));
+        let (status, text) = ocr_request(body, allowed, &dir);
+        assert_eq!(status, 409);
+        assert!(text.contains("not installed"), "{}", text);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -381,14 +576,14 @@ mod tests {
         let engine = Engine::new();
         let (bindings, token) = bound();
         let body = r#"{"pair":"enfr","texts":["Hello","Good morning"]}"#;
-        let (status, reply) = translate_from(body, &engine, Some(token.as_str()), &bindings, &root, Some(script.clone()));
+        let (status, reply) = translate_from(body, &engine, token_allowed(&bindings, Some(token.as_str())), &root, Some(script.clone()));
         assert_eq!(status, 200, "{}", reply);
         assert!(reply.contains("\"Hello\"") && reply.contains("\"Good morning\""), "{}", reply);
         engine.stop_all();
 
         // Without the marker the pack is not installed: the helper says so and does not download it.
         std::fs::remove_file(pack_dir.join(packs::MARKER)).unwrap();
-        let (status, reply) = translate_from(body, &engine, Some(token.as_str()), &bindings, &root, Some(script));
+        let (status, reply) = translate_from(body, &engine, token_allowed(&bindings, Some(token.as_str())), &root, Some(script));
         assert_eq!(status, 409, "{}", reply);
         assert!(reply.contains("not installed"), "{}", reply);
         let _ = std::fs::remove_dir_all(&root);
